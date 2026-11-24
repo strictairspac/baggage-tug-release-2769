@@ -7,7 +7,7 @@
 1. 交接班台
 2. 车型与检证
 3. 放行筛查
-4. 缺项交接单
+4. 缺项交接单（含漏登回执补登、重算与签核落版）
 
 PostgreSQL 嵌套 NOT EXISTS 对全套必检证据做关系除法。
 
@@ -35,11 +35,20 @@ docker compose up -d --build --wait
 
 | 登录名 | 角色 | 可执行操作 |
 |---|---|---|
-| operator | 资料操作员 | 登记业务资料、设置「复核时点（当日分钟）」、提交、查看和下载结果 |
-| reviewer | 业务复核员 | 查看执行证据、签署单次复核、下载交接单 |
+| operator | 资料操作员 | 登记业务资料、设置「复核时点（当日分钟）」、提交、补登漏登回执、失败续跑、查看和下载结果 |
+| reviewer | 业务复核员 | 查看执行证据、对当前有效版本签署单次复核、下载交接单 |
 | viewer | 只读观察员 | 查看资料、执行结果及审计，下载证据 |
 
-选用「YP-1124-早班」对应的演示资料，保存一份复演资料，再以默认参数 480 提交。worker 保存结果摘要、业务明细和 SHA-256。复核员登录后在「缺项交接单」签署。
+选用「YP-1124-早班」对应的演示资料，保存一份复演资料，再以默认参数 480 提交。worker 保存结果摘要、业务明细和 SHA-256。复核员登录后在「缺项交接单」签署，签署记录落版（版本号与摘要）。换班前收到漏登回执时，操作员在同一页补登：同键回执不重复入账，未签核批次自动重算并在重算期间暂停签核和下载，已签核交接单按原版本留存；重算失败可续跑，算完恢复交接。
+
+## 测试
+
+后端在 `backend/tests` 下提供 pytest 用例（领域合并口径、迁移幂等性、补登/重算/签核/续跑全流程 API）。本地无 PostgreSQL 时用 SQLite 内存库与 Python 决策双运行：
+
+```sh
+cd backend
+python -m pytest tests/
+```
 
 ## 开发说明
 
@@ -52,7 +61,7 @@ docker compose up -d --build --wait
 
 从 `backend/src/domain/scenario.py` 修改业务入口和演示口径，运行 `docker compose up -d --build --wait` 查看变更。数据库表结构在 `backend/src/models` 和 `backend/migrations`，输入模型在 `backend/src/schemas`。业务页和请求接口在 `frontend/src/pages`、`frontend/src/api`。资料、执行、复核三个工作流实体各有独立表和 API；场景输入及结果保留在所属资料和批次中。
 
-角色枚举在 `backend/src/constants/roles.py`、`frontend/src/constants/roles.js`，用于服务端访问控制、账号初始化、前端导航与签署。批次状态在 `backend/src/constants/job_state.py`、`frontend/src/constants/states.js`，用于队列、状态 API、状态标记与轮询。登记、提交、完成和签署事件写入审计表。
+角色枚举在 `backend/src/constants/roles.py`、`frontend/src/constants/roles.js`，用于服务端访问控制、账号初始化、前端导航与签署。批次状态在 `backend/src/constants/job_state.py`、`frontend/src/constants/states.js`，用于队列、状态 API、状态标记与轮询；`recomputing` 表示补登触发的重算进行中。登记、提交、完成、补登、重算、续跑和签署事件写入审计表。补登回执保存在 `receipt_backfills` 表（资料内按 `receipt_key` 唯一），批次版本 `runs.version` 与签核落版 `reviews.result_version/result_digest` 共同保证已签核交接单不被后续补登改动。
 
 `COMPOSE_PROJECT_NAME` 设置栈名，`FRONTEND_PORT`、`BACKEND_PORT`、`DB_PORT` 设置端口。通过 `DB_PASSWORD`、`JWT_SECRET`、`DEMO_PASSWORD` 配置本地凭据。设置 `SEED_DEMO=false` 可关闭演示数据载入，此时数据库初始没有演示账号。数据库密码调整后，已有数据卷需在数据库内同步修改用户密码。
 

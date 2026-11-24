@@ -16,3 +16,5 @@ class ReviewEntry(ReviewInput):
     run_id: int
     actor: str
     created_at: int
+    result_version: int
+    result_digest: str

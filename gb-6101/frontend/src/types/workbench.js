@@ -1,7 +1,7 @@
 /**
  * @typedef {{id:number, code:string, title:string, description:string, payload:Object, created_by:string}} Case
- * @typedef {{id:number, case_id:number, case_title:string, status:string, parameter:number, result:Object|null}} Run
- * @typedef {{run_id:number, actor:string, note:string, created_at:number}} Review
+ * @typedef {{id:number, case_id:number, case_title:string, status:string, parameter:number, result:Object|null, version:number, failure:string|null}} Run
+ * @typedef {{run_id:number, actor:string, note:string, created_at:number, result_version:number, result_digest:string}} Review
  */
 
 /** Reject a malformed configuration before rendering its navigation. */
